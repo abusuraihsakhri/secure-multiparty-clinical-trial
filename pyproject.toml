@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "secure-multiparty-clinical-trial"
+version = "2.0.0"
+description = "MPC-TrialSync: Multi-Hospital Yao Garbled Circuit Kaplan-Meier Survival Engine"
+readme = "README.md"
+authors = [{ name = "Dr. Abu Suraih Sakhri", email = "abusuraih@example.com" }]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Security/Cryptography",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+secure-multiparty-clinical-trial = "mpc_clinical_trial.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/abusuraihsakhri/secure-multiparty-clinical-trial"
+Repository = "https://github.com/abusuraihsakhri/secure-multiparty-clinical-trial.git"
