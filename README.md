@@ -1,6 +1,6 @@
 # Secure Multiparty Clinical Trial
 
-### [Open the Live Application →](https://abusuraihsakhri.github.io/secure-multiparty-clinical-trial/)
+**Planned GitHub Pages application:** https://abusuraihsakhri.github.io/secure-multiparty-clinical-trial/ (deployment pending verification)
 
 An educational prototype for clinical-trial event-count aggregation, Kaplan–Meier curves, and a two-arm log-rank test. It also preserves the earlier rule-based task-audit CLIs and a local FastAPI service.
 
@@ -8,7 +8,7 @@ An educational prototype for clinical-trial event-count aggregation, Kaplan–Me
 
 ## Browser demonstration
 
-The [static application](https://abusuraihsakhri.github.io/secure-multiparty-clinical-trial/) runs in a modern browser with no server-side Python or remote analytics API. It provides:
+The static application, when published through GitHub Pages, runs in a modern browser with no server-side Python or remote analytics API. It provides:
 
 - Editable JSON time-binned event and censor counts for control and treatment arms across sites.
 - Kaplan–Meier step estimates, at-risk tables, an asymptotic two-sided log-rank p-value, and JSON export.
