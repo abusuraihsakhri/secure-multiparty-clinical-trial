@@ -20,7 +20,7 @@ class InvariantQCWorker:
                 origin_worker="InvariantQCWorker",
                 urgency=UrgencyLevel.ELEVATED,
                 summary="Primary Metric Threshold Exceeded",
-                technical_details=f"Primary measurement ({payload.primary_metric:.2f}) exceeds upper reference limit (25.00) against the demonstration limit (25.00).",
+                technical_details=f"Primary measurement ({payload.primary_metric:.2f}) exceeds the arbitrary demonstration threshold (25.00).",
                 actionable_remediation="Review synthetic test thresholds and inputs.",
             ))
         return alerts

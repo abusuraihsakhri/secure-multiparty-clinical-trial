@@ -1,3 +1,9 @@
+# Additional finite-input validation for the preserved legacy dataclass.
+def test_legacy_frontier_payload_rejects_nan():
+    from mpc_clinical_trial.models import FrontierPayload
+    with pytest.raises(ValueError):
+        FrontierPayload("A", "B", float("nan"), 1.0, "NOMINAL")
+
 """Known-input verification for aggregate-only survival calculations."""
 import math
 import pytest
