@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Clinical Trial Aggregate Survival — Research Demonstration</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;--bg:#0b1220;--panel:#141f30;--muted:#b5c5d8;--line:#34455c;--accent:#66bdf8;--good:#8ce0bd}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#edf3fa;line-height:1.5}
+main,header,footer{max-width:1260px;margin:auto;padding:1rem 1.3rem}
+header{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;padding-top:1.6rem}
+h1{font-size:1.65rem;line-height:1.2;margin:0}h2{font-size:1.1rem;margin:0 0 .6rem}p{margin:.45rem 0;color:var(--muted)}
+a{color:var(--accent)}.notice{border-left:4px solid var(--accent);background:#152a3c;padding:.7rem 1rem;margin:1.1rem 0;border-radius:4px;color:#edf3fa}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1rem;align-items:start}
+.panel{background:var(--panel);padding:1.15rem;border:1px solid var(--line);border-radius:12px;min-width:0;margin-bottom:1rem}
+label{display:block;font-weight:650;margin:.8rem 0 .35rem;font-size:.9rem}
+textarea,input{width:100%;background:#0a1524;border:1px solid #52647c;color:#f6f9fd;border-radius:6px;padding:.58rem;font:inherit}
+textarea{font: .8rem/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical;min-height:290px}
+input[type=checkbox]{width:auto;vertical-align:middle;accent-color:var(--accent)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;margin:.8rem 0}
+button{font:inherit;font-weight:650;cursor:pointer;border:1px solid #7dbcea;background:#1661a0;color:white;border-radius:7px;padding:.52rem .88rem}
+button.secondary{background:#283950;border-color:#627993}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid #ffd67b;outline-offset:2px}
+.muted{font-size:.84rem;color:var(--muted)}.status{color:var(--good);font-weight:700}
+#error{color:#ffb5b5;white-space:pre-wrap}.metric{font-size:1.04rem;font-weight:700}
+canvas{display:block;width:100%;height:auto;background:#0c1726;border-radius:8px}
+.scroller{overflow-x:auto;max-height:300px;overflow-y:auto}
+table{width:100%;font-size:.81rem;border-collapse:collapse;white-space:nowrap}
+th,td{padding:.43rem .5rem;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#cde7fd;background:#0a1524;padding:.7rem;border-radius:7px;min-height:6rem}
+footer{color:var(--muted);font-size:.83rem;padding-bottom:2rem}
+@media(max-width:850px){.grid{grid-template-columns:1fr}header{padding-top:1rem}}
+@media(max-width:500px){main,header,footer{padding-left:.75rem;padding-right:.75rem}.two{grid-template-columns:1fr}h1{font-size:1.35rem}}
+</style>
+</head>
+<body>
+<header>
+<div><h1>Clinical Trial Aggregate Survival</h1><p>Local Kaplan–Meier and log-rank demonstration · educational use</p></div>
+<a href="https://github.com/abusuraihsakhri/secure-multiparty-clinical-trial" target="_blank" rel="noopener noreferrer">Source repository ↗</a>
+</header>
+<main>
+<div class="notice" role="note"><strong>Synthetic or approved aggregate data only.</strong> This browser app does not upload inputs, implement garbled circuits, perform secret sharing, or provide cryptographically secure multiparty computation. Aggregate cells may still disclose sensitive information. Do not enter patient-level data or protected health information. Results are not clinical recommendations.</div>
+<div class="grid">
+<section class="panel" aria-labelledby="data-heading">
+<h2 id="data-heading">1 · Multicenter aggregate event counts</h2>
+<p class="muted">JSON records: site, arm (control/treatment), initial participants n, and time-binned events/censored. Events are assumed to precede censoring at the same recorded time.</p>
+<label for="data">Synthetic input records</label>
+<textarea id="data" spellcheck="false" aria-describedby="data-help"></textarea>
+<p id="data-help" class="muted">Distinct site/arm combinations required; participants cannot be removed more than once. Both arms required.</p>
+<div class="row">
+<button id="analyze" type="button">Calculate survival</button>
+<button id="sample" type="button" class="secondary">Restore sample</button>
+<button id="export" type="button" class="secondary" disabled>Export results JSON</button>
+</div>
+<div id="error" role="alert"></div>
+</section>
+<section class="panel" aria-labelledby="results-heading">
+<h2 id="results-heading">2 · Kaplan–Meier estimates</h2>
+<p id="summary" class="muted" aria-live="polite">Run the sample analysis to view results.</p>
+<p id="statistics" class="metric" aria-live="polite"></p>
+<canvas id="plot" width="800" height="360" aria-label="Kaplan-Meier survival step curves for control and treatment" role="img">Survival curve chart</canvas>
+<div class="scroller">
+<table aria-label="Survival estimates by time">
+<thead><tr><th>Arm</th><th>Time</th><th>At risk</th><th>Events</th><th>Censored</th><th>Survival</th></tr></thead>
+<tbody id="result-rows"></tbody>
+</table>
+</div>
+<p class="muted">Log-rank is asymptotic, one degree of freedom, and undefined when the score variance is zero. No confidence intervals are estimated. No small-cell suppression is applied.</p>
+</section>
+</div>
+<section class="panel" aria-labelledby="audit-heading">
+<h2 id="audit-heading">3 · Rule-based audit (legacy demonstration)</h2>
+<p class="muted">Independent threshold demonstration retained for compatibility; these are arbitrary software-test thresholds, not clinical reference ranges or MPC checks.</p>
+<div class="two">
+<div><label for="task">Synthetic task ID</label><input id="task" value="SYN-TASK-01" maxlength="100"></div>
+<div><label for="target">Synthetic target ID</label><input id="target" value="SYN-GROUP-01" maxlength="100"></div>
+<div><label for="primary">Primary value (flag if &gt;25)</label><input id="primary" type="number" value="29.4" step="any" required></div>
+<div><label for="secondary">Secondary value (flag if &gt;12)</label><input id="secondary" type="number" value="14.8" step="any" required></div>
+</div>
+<label for="descriptor">Status descriptor</label>
+<input id="descriptor" value="DISCORDANT_ANOMALY" maxlength="150">
+<label><input id="critical" type="checkbox" checked> Critical flag (demo escalation)</label>
+<div class="row"><button id="audit" type="button">Evaluate synthetic task</button></div>
+<pre id="audit-output" aria-live="polite">No task evaluated.</pre>
+</section>
+</main>
+<footer>Runs entirely in this browser. No external libraries, network API calls, tracking, or persistent storage are used by the application. In-memory inputs disappear on page reload.</footer>
+<script>
+"use strict";
+const demo = [
+  {site:"North",arm:"control",n:20,intervals:[{time:1,events:3,censored:1},{time:2,events:2,censored:2},{time:3,events:1,censored:2}]},
+  {site:"North",arm:"treatment",n:20,intervals:[{time:1,events:1,censored:2},{time:2,events:2,censored:1},{time:3,events:1,censored:3}]},
+  {site:"South",arm:"control",n:15,intervals:[{time:1,events:2,censored:1},{time:2,events:2,censored:1},{time:3,events:2,censored:1}]},
+  {site:"South",arm:"treatment",n:15,intervals:[{time:1,events:1,censored:1},{time:2,events:1,censored:2},{time:3,events:1,censored:2}]}
+];
+const el = id => document.getElementById(id);
+let lastResult = null;
+function assertCount(value,label,positive=false){
+  if(!Number.isSafeInteger(value)||value<(positive?1:0)||value>10000000) throw Error(label+" must be a valid nonnegative integer within 10 million");
+  return value;
+}
+function analyze(records){
+  if(!Array.isArray(records)||!records.length||records.length>1000) throw Error("Provide 1–1000 aggregate site/arm records");
+  const totals={control:0,treatment:0},counts={control:new Map(),treatment:new Map()};
+  const sites=new Set(),seen=new Set();
+  let intervalTotal=0;
+  records.forEach((r,i)=>{
+    if(!r||typeof r!=="object"||Array.isArray(r)) throw Error("Record "+(i+1)+" must be an object");
+    if(typeof r.site!=="string"||!r.site.trim()||r.site.length>80) throw Error("Invalid site label in record "+(i+1));
+    if(r.arm!=="control"&&r.arm!=="treatment") throw Error("Invalid arm in record "+(i+1));
+    const key=JSON.stringify([r.site,r.arm]);
+    if(seen.has(key)) throw Error("Duplicate site/arm: "+r.site+"/"+r.arm);
+    seen.add(key);sites.add(r.site);
+    const n=assertCount(r.n,"Participants",true);
+    if(!Array.isArray(r.intervals)) throw Error("Record "+(i+1)+" needs an intervals array");
+    intervalTotal+=r.intervals.length;
+    if(intervalTotal>5000) throw Error("Maximum 5000 intervals exceeded");
+    totals[r.arm]+=n;
+    if(!Number.isSafeInteger(totals[r.arm])) throw Error("Participants exceed supported precision");
+    const times=new Set();
+    const intervals=r.intervals.map(entry=>{
+      if(!entry||typeof entry!=="object"||Array.isArray(entry)) throw Error("Invalid interval");
+      if(typeof entry.time!=="number"||!Number.isFinite(entry.time)||entry.time<0||entry.time>10000000) throw Error("Time must be finite and nonnegative");
+      if(times.has(entry.time)) throw Error("Duplicate time within site/arm");
+      times.add(entry.time);
+      return {time:entry.time,events:assertCount(entry.events,"Events"),censored:assertCount(entry.censored,"Censored")};
+    }).sort((a,b)=>a.time-b.time);
+    let remaining=n;
+    intervals.forEach(e=>{
+      if(e.events+e.censored>remaining) throw Error("Removals exceed participants at "+r.site+"/"+r.arm);
+      remaining-=e.events+e.censored;
+      const pair=counts[r.arm].get(e.time)||{events:0,censored:0};
+      pair.events+=e.events;pair.censored+=e.censored;
+      counts[r.arm].set(e.time,pair);
+    });
+  });
+  if(!totals.control||!totals.treatment) throw Error("Control and treatment arms are both required");
+  const timePoints=[...new Set([...counts.control.keys(),...counts.treatment.keys()])].sort((a,b)=>a-b);
+  const risk={...totals},survival={control:1,treatment:1},curves={control:[],treatment:[]};
+  let score=0,variance=0;
+  timePoints.forEach(time=>{
+    const pair={},d={};
+    ["control","treatment"].forEach(arm=>{
+      pair[arm]=counts[arm].get(time)||{events:0,censored:0};
+      d[arm]=pair[arm].events;
+      if(pair[arm].events+pair[arm].censored>risk[arm]) throw Error("Aggregate removals exceed risk set");
+      if(risk[arm]>0){
+        survival[arm]*=1-d[arm]/risk[arm];
+        curves[arm].push({time,at_risk:risk[arm],events:d[arm],censored:pair[arm].censored,survival:survival[arm]});
+      }
+    });
+    const n1=risk.control,n2=risk.treatment,n=n1+n2,D=d.control+d.treatment;
+    if(n>1&&D>0){
+      score+=d.control-D*n1/n;
+      variance+=n1*n2*D*(n-D)/(n*n*(n-1));
+    }
+    ["control","treatment"].forEach(arm=>{risk[arm]-=pair[arm].events+pair[arm].censored;});
+  });
+  const chi=variance>0?score*score/variance:null;
+  return {method:"Aggregate Kaplan-Meier and log-rank (not MPC)",sites:sites.size,participants:totals,curves,
+    log_rank:{chi_square:chi,p_value:chi===null?null:erfc(Math.sqrt(chi/2)),degrees_of_freedom:1}};
+}
+// Numerical Recipes approximation for complementary error function; max error ~1e-7.
+function erfc(x){
+  const z=Math.abs(x),t=1/(1+0.5*z);
+  const a=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));
+  return Math.max(0,Math.min(1,x>=0?a:2-a));
+}
+function fmt(x){return x===null?"undefined":Number(x).toFixed(4);}
+function draw(curves){
+  const canvas=el("plot"),ctx=canvas.getContext("2d"),W=canvas.width,H=canvas.height,pad={l:66,r:16,t:18,b:48};
+  ctx.clearRect(0,0,W,H);ctx.fillStyle="#0c1726";ctx.fillRect(0,0,W,H);
+  const maxTime=Math.max(1,...Object.values(curves).flat().map(p=>p.time));
+  const x=t=>pad.l+(W-pad.l-pad.r)*(t/maxTime),y=v=>pad.t+(H-pad.t-pad.b)*(1-v);
+  ctx.strokeStyle="#536b81";ctx.lineWidth=1;ctx.font="16px system-ui";ctx.fillStyle="#d3e0f0";
+  for(let i=0;i<=4;i++){const v=i/4;ctx.beginPath();ctx.moveTo(pad.l,y(v));ctx.lineTo(W-pad.r,y(v));ctx.stroke();ctx.fillText(v.toFixed(2),12,y(v)+5);}
+  ctx.fillText("Time",W/2,H-8);
+  for(let i=0;i<=4;i++){const t=maxTime*i/4;ctx.fillText(t.toFixed(1),Math.min(W-60,x(t)-12),H-25);}
+  [{arm:"control",color:"#66bdf8"},{arm:"treatment",color:"#ffcf76"}].forEach(({arm,color},index)=>{
+    ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();
+    let current=1;ctx.moveTo(x(0),y(current));
+    for(const step of curves[arm]){ctx.lineTo(x(step.time),y(current));current=step.survival;ctx.lineTo(x(step.time),y(current));}
+    ctx.lineTo(x(maxTime),y(current));ctx.stroke();
+    ctx.fillStyle=color;ctx.fillRect(W-230,pad.t+index*25,15,15);ctx.fillText(arm,W-208,pad.t+13+index*25);
+  });
+}
+function show(result){
+  el("summary").textContent=result.sites+" site(s) · control n="+result.participants.control+" · treatment n="+result.participants.treatment;
+  el("statistics").textContent="Log-rank χ² = "+fmt(result.log_rank.chi_square)+" · p = "+fmt(result.log_rank.p_value);
+  const body=el("result-rows");body.replaceChildren();
+  ["control","treatment"].forEach(arm=>result.curves[arm].forEach(step=>{
+    const row=document.createElement("tr");
+    [arm,step.time,step.at_risk,step.events,step.censored,fmt(step.survival)].forEach(value=>{
+      const cell=document.createElement("td");cell.textContent=String(value);row.appendChild(cell);
+    });
+    body.appendChild(row);
+  }));
+  draw(result.curves);
+}
+function runAnalysis(){
+  el("error").textContent="";lastResult=null;el("export").disabled=true;
+  try {
+    const data=JSON.parse(el("data").value);
+    const result=analyze(data);
+    show(result);lastResult=result;el("export").disabled=false;
+  }catch(e){
+    el("error").textContent="Unable to calculate: "+e.message;
+    el("summary").textContent="Input was not analyzed.";el("statistics").textContent="";
+    el("result-rows").replaceChildren();
+    const c=el("plot").getContext("2d");c.clearRect(0,0,800,360);
+  }
+}
+function runRuleAudit(){
+  const a=el("primary").value.trim(),b=el("secondary").value.trim();
+  const primary=Number(a),secondary=Number(b);
+  if(!a||!b||!Number.isFinite(primary)||!Number.isFinite(secondary)){
+    el("audit-output").textContent="Enter finite numeric values for both metrics.";return;
+  }
+  const descriptor=el("descriptor").value;
+  const alerts=[];
+  if(primary>25) alerts.push({worker:"InvariantQCWorker",urgency:"ELEVATED_RISK",summary:"Primary metric exceeded demonstration threshold 25"});
+  if(el("critical").checked||secondary>12) alerts.push({worker:"SafetyEscalationWorker",urgency:el("critical").checked?"CRITICAL_STAT_PANIC":"ELEVATED_RISK",summary:"Secondary threshold or critical flag triggered"});
+  if(/DISCORDANT|ANOMALY|MUTANT|VIOLATION|FAIL|REJECT/i.test(descriptor)) alerts.push({worker:"ProtocolConformanceWorker",urgency:"ELEVATED_RISK",summary:"Descriptor triggered demonstration keyword check"});
+  const urgency=alerts.some(a=>a.urgency==="CRITICAL_STAT_PANIC")?"CRITICAL_STAT_PANIC":alerts.length?"ELEVATED_RISK":"ROUTINE";
+  el("audit-output").textContent=JSON.stringify({mode:"Local deterministic simulation; not a clinical or cryptographic audit",task_id:el("task").value,target_identifier:el("target").value,overall_urgency:urgency,total_alerts:alerts.length,alerts},null,2);
+}
+el("data").value=JSON.stringify(demo,null,2);
+el("analyze").addEventListener("click",runAnalysis);
+el("sample").addEventListener("click",()=>{el("data").value=JSON.stringify(demo,null,2);runAnalysis();});
+el("audit").addEventListener("click",runRuleAudit);
+el("export").addEventListener("click",()=>{
+  if(!lastResult)return;
+  const blob=new Blob([JSON.stringify(lastResult,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob),link=document.createElement("a");
+  link.href=url;link.download="aggregate-survival-demo.json";document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+runAnalysis();
+</script>
+</body>
+</html>

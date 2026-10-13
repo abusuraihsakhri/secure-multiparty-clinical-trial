@@ -5,11 +5,22 @@ import argparse
 import csv
 import json
 import sys
+from mpc_clinical_trial.survival import analyze_aggregates
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
 from agents.base import AuditLogger
 
 supervisor = SystemSupervisor(model_provider="mock")
+
+
+def parse_csv_boolean(value):
+    """Parse a CSV boolean without treating the string 'False' as true."""
+    normalized = str(value).strip().lower()
+    if normalized in ("true", "1", "yes", "y"):
+        return True
+    if normalized in ("false", "0", "no", "n", ""):
+        return False
+    raise ValueError(f"Invalid boolean value: {value!r}")
 
 
 def main(argv=None):
@@ -36,6 +47,11 @@ def main(argv=None):
 
     # Verify Audit
     subparsers.add_parser("verify-audit", help="Verify HMAC audit trail integrity")
+
+    # Aggregate-only survival analysis (NOT secure multiparty computation).
+    p_survival = subparsers.add_parser("survival", help="Analyze synthetic aggregate event counts")
+    p_survival.add_argument("-i", "--input", required=True, help="JSON array of site/arm aggregate records")
+    p_survival.add_argument("-o", "--output", help="Optional output JSON path")
 
     # Serve
     p_serve = subparsers.add_parser("serve", help="Launch FastAPI REST server")
@@ -83,6 +99,9 @@ def main(argv=None):
         with open(args.input, mode="r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             fieldnames = list(reader.fieldnames or [])
+            required = {"task_id", "target_identifier", "primary_metric", "secondary_metric"}
+            if not required.issubset(fieldnames):
+                parser.error("CSV missing required columns: " + ", ".join(sorted(required - set(fieldnames))))
             rows = list(reader)
 
         out_fields = fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]
@@ -94,7 +113,7 @@ def main(argv=None):
                 primary_metric=float(r.get("primary_metric", 15.0)),
                 secondary_metric=float(r.get("secondary_metric", 5.0)),
                 status_descriptor=r.get("status_descriptor", "NOMINAL"),
-                is_critical_flag=bool(r.get("is_critical_flag", False)),
+                is_critical_flag=parse_csv_boolean(r.get("is_critical_flag", False)),
             )
             dossier = supervisor.process_task(payload)
             row_dict = dict(r)
@@ -109,6 +128,20 @@ def main(argv=None):
             writer.writeheader()
             writer.writerows(out_rows)
         print(f"Processed {len(out_rows)} records -> {args.output}")
+        return 0
+
+    if args.command == "survival":
+        try:
+            with open(args.input, encoding="utf-8") as handle:
+                analysis = analyze_aggregates(json.load(handle))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            parser.error(f"Invalid aggregate input: {exc}")
+        output_text = json.dumps(analysis, indent=2)
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as handle:
+                handle.write(output_text + "\n")
+        else:
+            print(output_text)
         return 0
 
     if args.command == "serve":

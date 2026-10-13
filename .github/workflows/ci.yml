@@ -1,40 +1,56 @@
-name: Secure Multiparty Clinical Trial CI/CD & Security Verification
+name: Python tests and security regressions
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main, "audit/**"]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test-and-audit:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install fastapi uvicorn pydantic pytest
-
-    - name: Run Pytest Suite
-      run: |
-        pytest -v
-
-    - name: Security SAST & Zero-PHI Audit
-      run: |
-        python -c "
-        from agents.base import PHIGuard, AuditLogger
-        import pytest
-        assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
-        "
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install tested package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[server,test]"
+          python -m pip check
+      - name: Syntax and tests
+        run: |
+          python -m compileall -q agents mpc_clinical_trial cli.py enrichment.py simulator.py
+          pytest -q
+      - name: Browser script syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("index.html").read_text(encoding="utf-8")
+          match = re.search(r"<script>(.*?)</script>", html, re.S)
+          assert match, "Missing application script"
+          Path("/tmp/clinical-trial-app.js").write_text(match.group(1), encoding="utf-8")
+          PY
+          node --check /tmp/clinical-trial-app.js
+      - name: Browser calculation smoke test
+        run: |
+          node - <<'JS'
+          const fs = require('fs'), vm = require('vm'), assert = require('assert');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const code = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+          const prefix = code.slice(0, code.indexOf('el("data").value=JSON.stringify'));
+          const context = {};
+          vm.runInNewContext(prefix + '\n globalThis.check = analyze(demo);', context);
+          assert.equal(context.check.participants.control, 35);
+          assert.equal(context.check.participants.treatment, 35);
+          assert.ok(context.check.log_rank.p_value >= 0 && context.check.log_rank.p_value <= 1);
+          JS

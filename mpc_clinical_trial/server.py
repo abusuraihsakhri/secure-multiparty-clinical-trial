@@ -11,19 +11,19 @@ coordinator = MPCTrialCoordinator()
 def create_app():
     try:
         from fastapi import FastAPI
-        from pydantic import BaseModel
+        from pydantic import BaseModel, Field
 
         app = FastAPI(
             title="MPC-TrialSync: Multi-Hospital Yao Garbled Circuit Kaplan-Meier Survival Agent",
-            description="Computes multi-institutional Kaplan-Meier survival curves and log-rank p-values using 2-party Garbled Circuits without sharing patient data.",
-            version="2.0.0-FRONTIER",
+            description="Legacy rule-based threshold demonstration. Does not perform cryptographic MPC or survival analysis; aggregate-only survival analysis is available in mpc_clinical_trial.survival.",
+            version="2.0.1-demo",
         )
 
         class TaskRequest(BaseModel):
             task_id: str = "TASK-2026-001"
             target_identifier: str = "TARGET-BIO-KEY"
-            primary_metric: float = 28.5
-            secondary_metric: float = 14.2
+            primary_metric: float = Field(default=28.5, allow_inf_nan=False)
+            secondary_metric: float = Field(default=14.2, allow_inf_nan=False)
             status_descriptor: str = "DISCORDANT_ANOMALY"
             is_critical_flag: bool = True
             attributes: Dict[str, Any] = {}
