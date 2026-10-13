@@ -1,99 +1,87 @@
 # Secure Multiparty Clinical Trial
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+### [Open the Live Application →](https://abusuraihsakhri.github.io/secure-multiparty-clinical-trial/)
 
-<div align="center">
+An educational prototype for clinical-trial event-count aggregation, Kaplan–Meier curves, and a two-arm log-rank test. It also preserves the earlier rule-based task-audit CLIs and a local FastAPI service.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+**Scope and limitations:** This repository **does not implement secure multiparty computation**, Yao garbled circuits, oblivious transfer, homomorphic encryption, or a production clinical-trial system. Analysis is performed on *centrally supplied aggregate counts*; summaries can still disclose sensitive information. The rule-based alerts use arbitrary demonstration thresholds, **not validated clinical criteria**. Use synthetic or appropriately approved aggregate data only; never upload individual participant data or PHI.
 
-</div>
+## Browser demonstration
 
----
+The [static application](https://abusuraihsakhri.github.io/secure-multiparty-clinical-trial/) runs in a modern browser with no server-side Python or remote analytics API. It provides:
 
-## 📖 What It Does
+- Editable JSON time-binned event and censor counts for control and treatment arms across sites.
+- Kaplan–Meier step estimates, at-risk tables, an asymptotic two-sided log-rank p-value, and JSON export.
+- A separate local deterministic version of the legacy rule-based audit.
+- Client-side validation and synthetic sample records.
 
-**Secure Multiparty Clinical Trial** is an advanced analytical and computational platform implementing Yao Garbled Circuits multi-hospital Kaplan-Meier survival analysis agent.
+Input remains within the page's memory (not transmitted or saved by the application). Do not infer cryptographic privacy or clinical safety from this property. Small-cell disclosure risk is not mitigated.
 
----
+### Aggregate input format
 
-## ⚙️ Key Capabilities & Algorithmic Modules
+Each entry represents one site and one arm with initial participants, followed by per-time counts. Time values must be finite and nonnegative; events and censored counts must be nonnegative integers, with total removals no greater than the initial participants. A site/arm combination cannot be repeated. Events are ordered before censoring at the same time.
 
-- **Deterministic Calculation Engine**: Strict compliance with standard reference formulations and thresholds.
-- **Risk & Urgency Classification**: Multi-tier categorization with automated clinical/operational action recommendations.
-- **Validation & Guardrails**: Rigorous input bounds checking and anomaly detection.
-
----
-
-## 💻 CLI Quickstart & Usage
-
-### 1. Guided Interactive Mode
-```bash
-python cli.py
+```json
+[
+  {"site":"A","arm":"control","n":10,"intervals":[{"time":1,"events":2,"censored":1}]},
+  {"site":"A","arm":"treatment","n":10,"intervals":[{"time":1,"events":1,"censored":1}]}
+]
 ```
 
-### 2. Direct Parameterized Evaluation
-```bash
-python cli.py --task-id <value> --target <value> --primary <value> --secondary <value>
-```
+For survival analysis, the input contains **site-level aggregate counts**, not protected secret shares. Log-rank p-values use the chi-squared approximation with one degree of freedom; they are undefined when variance is zero. No confidence intervals, stratification, or multiplicity adjustments are calculated.
 
-### Parameter Reference
-- `--task-id`: Specifies input measurement or parameter value.
-- `--target`: Specifies input measurement or parameter value.
-- `--primary`: Specifies input measurement or parameter value.
-- `--secondary`: Specifies input measurement or parameter value.
-- `--critical`: Specifies input measurement or parameter value.
-- `--status`: Specifies input measurement or parameter value.
-- `--input`: Specifies input measurement or parameter value.
-- `--output`: Specifies input measurement or parameter value.
+## Python CLI
 
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `task_id` | Parameter / observation metric | Required |
-| `target_identifier` | Parameter / observation metric | Required |
-| `primary_metric` | Parameter / observation metric | Required |
-| `secondary_metric` | Parameter / observation metric | Required |
-| `is_critical_flag` | Parameter / observation metric | Required |
-| `status_descriptor` | Parameter / observation metric | Required |
-
----
-
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
+Python 3.9+:
 
 ```bash
-pytest -v
+python -m pip install -e ".[server,test]"
+secure-multiparty-clinical-trial survival -i sites.json -o analysis.json
+secure-multiparty-clinical-trial audit --task-id SYN-01 --primary 29 --secondary 13
+python cli.py batch -i sample.csv -o results.csv
+python cli.py verify-audit
+python -m pytest -q
 ```
 
-Execute high-throughput batch simulation benchmarks:
+The installed command uses `mpc_clinical_trial.cli`; `python cli.py` is the preserved legacy entry point. Both support `audit`, `chat`, `batch`, `survival`, and `serve` where applicable; the legacy CLI additionally supports `verify-audit`. The batch CSV requires `task_id`, `target_identifier`, `primary_metric`, and `secondary_metric`; optional `is_critical_flag` is parsed as true/false, yes/no, or 1/0.
+
+Python API use:
+
+```python
+from mpc_clinical_trial.survival import analyze_aggregates
+
+result = analyze_aggregates([
+    {"site": "A", "arm": "control", "n": 10,
+     "intervals": [{"time": 1, "events": 2, "censored": 1}]},
+    {"site": "A", "arm": "treatment", "n": 10,
+     "intervals": [{"time": 1, "events": 1, "censored": 1}]},
+])
+print(result["log_rank"])
+```
+
+## Local API and Docker
 
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+python cli.py serve --host 127.0.0.1 --port 8000
+# health: http://127.0.0.1:8000/health
+# POST /api/audit  |  POST /api/chat  |  GET /metrics
 ```
 
----
+Docker Compose requires an audit key in the environment (32+ UTF-8 bytes). For example, generate one locally using `python -c "import secrets; print(secrets.token_hex(32))"` and set `AUDIT_SECRET_KEY` outside the repository, then run `docker compose up --build`. Compose maps port 8000 to loopback only.
 
-## 🐳 Container Deployment
+### Security boundaries
 
-```bash
-docker build -t secure-multiparty-clinical-trial .
-docker run -p 8000:8000 secure-multiparty-clinical-trial
-```
+- The PHI screen detects certain identifier formats using regular expressions; **it is not a de-identification procedure or a HIPAA compliance control**. Inputs are echoed in some results, so do not provide real patient identifiers.
+- The optional local audit log uses HMAC-SHA256 signatures with an environment key, or an ephemeral random key when unset. The chain is **in-memory and not durable, externally anchored, or tamper-proof against process compromise**.
+- The API has no authentication, authorization, transport encryption, or durable audit store. **Do not expose it to untrusted networks or real clinical data.**
+- All language-model provider settings except the deterministic mock are unsupported. The mock does not verify clinical assertions.
+
+## Testing, tooling, and deployment
+
+GitHub Actions tests Python 3.10–3.12, validates the packaged dependency set, runs regression tests, and checks browser JavaScript syntax and sample aggregate calculations. A separate Pages workflow publishes the static `index.html` on updates to `master`. GitHub Pages does not run the FastAPI server.
+
+Technology: Python standard library, Pydantic 2, optional FastAPI/Uvicorn, HTML/CSS, and vanilla browser JavaScript; no browser Python or Pyodide is required. The static page is designed for recent Chromium, Firefox, and Safari, although full cross-browser end-to-end verification is not automated.
+
+## License
+
+[MIT](LICENSE).
