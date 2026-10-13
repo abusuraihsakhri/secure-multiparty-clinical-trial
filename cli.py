@@ -139,7 +139,7 @@ def main(argv=None):
         output_text = json.dumps(analysis, indent=2)
         if args.output:
             with open(args.output, "w", encoding="utf-8") as handle:
-                handle.write(output_text + "\\n")
+                handle.write(output_text + "\n")
         else:
             print(output_text)
         return 0
