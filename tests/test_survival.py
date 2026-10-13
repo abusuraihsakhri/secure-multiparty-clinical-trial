@@ -1,9 +1,3 @@
-# Additional finite-input validation for the preserved legacy dataclass.
-def test_legacy_frontier_payload_rejects_nan():
-    from mpc_clinical_trial.models import FrontierPayload
-    with pytest.raises(ValueError):
-        FrontierPayload("A", "B", float("nan"), 1.0, "NOMINAL")
-
 """Known-input verification for aggregate-only survival calculations."""
 import math
 import pytest
@@ -82,3 +76,10 @@ def test_survival_cli_round_trip(tmp_path):
     result = json.loads(output_path.read_text())
     assert result["participants"]["control"] == 2
     assert legacy_main(["survival", "-i", str(input_path), "-o", str(output_path)]) == 0
+
+# Additional finite-input validation for the preserved legacy dataclass.
+def test_legacy_frontier_payload_rejects_nan():
+    from mpc_clinical_trial.models import FrontierPayload
+    with pytest.raises(ValueError):
+        FrontierPayload("A", "B", float("nan"), 1.0, "NOMINAL")
+
