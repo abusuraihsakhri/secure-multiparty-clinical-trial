@@ -62,3 +62,17 @@ def test_multiple_sites_pool_counts():
     assert result["participants"] == {"control": 4, "treatment": 4}
     assert result["curves"]["control"][0]["events"] == 2
     assert result["curves"]["control"][0]["survival"] == 0.5
+
+
+def test_survival_cli_round_trip(tmp_path):
+    import json
+    from mpc_clinical_trial.cli import main
+    from cli import main as legacy_main
+
+    input_path = tmp_path / "sites.json"
+    output_path = tmp_path / "stats.json"
+    input_path.write_text(json.dumps(sample()))
+    assert main(["survival", "-i", str(input_path), "-o", str(output_path)]) == 0
+    result = json.loads(output_path.read_text())
+    assert result["participants"]["control"] == 2
+    assert legacy_main(["survival", "-i", str(input_path), "-o", str(output_path)]) == 0
