@@ -15,8 +15,8 @@ def create_app():
 
         app = FastAPI(
             title="MPC-TrialSync: Multi-Hospital Yao Garbled Circuit Kaplan-Meier Survival Agent",
-            description="Computes multi-institutional Kaplan-Meier survival curves and log-rank p-values using 2-party Garbled Circuits without sharing patient data.",
-            version="2.0.0-FRONTIER",
+            description="Legacy rule-based threshold demonstration. Does not perform cryptographic MPC or survival analysis; aggregate-only survival analysis is available in mpc_clinical_trial.survival.",
+            version="2.0.1-demo",
         )
 
         class TaskRequest(BaseModel):

@@ -15,7 +15,7 @@ supervisor = SystemSupervisor(model_provider="mock")
 
 app = FastAPI(
     title="Secure Multiparty Clinical Trial API",
-    description="Enterprise Distributed Component Platform (Clinical & Biomedical AI)",
+    description="Local rule-based demonstration API; not a clinical or MPC service",
     version="3.0.0-ENTERPRISE",
 )
 
@@ -26,7 +26,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "HEALTHY", "service": "secure-multiparty-clinical-trial", "domain": "Clinical & Biomedical AI", "standard": "CAP / CLSI / ISO Standards", "version": "3.0.0-ENTERPRISE"}
+    return {"status": "HEALTHY", "service": "secure-multiparty-clinical-trial", "domain": "Clinical & Biomedical AI", "standard": "demonstration thresholds only", "version": "3.0.1-demo"}
 
 
 @app.get("/metrics", response_class=PlainTextResponse)
