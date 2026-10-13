@@ -8,3 +8,9 @@ output.csv
 dist/
 build/
 *.egg-info/
+.env
+.env.*
+!.env.example
+.venv/
+.coverage
+htmlcov/
